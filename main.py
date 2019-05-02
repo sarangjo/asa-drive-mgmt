@@ -5,7 +5,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+SCOPES = [
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/drive.file'
+]
 
 ASA_DRIVE_ID = "0ANxIVFZCT5MfUk9PVA"
 
@@ -31,15 +34,15 @@ class DriveHelper:
             with open('token.pickle', 'wb') as token:
                 pickle.dump(self.creds, token)
 
-    def run(self):
+    def run(self, modify=False):
         service = build('drive', 'v3', credentials=self.creds)
 
         # Call the Drive v3 API
-        query = "name = 'Circuit Archive'"
+        query = "name contains 'Copy of'"
 
         results = service.files().list(q=query, corpora="drive", driveId=ASA_DRIVE_ID,
                                        includeItemsFromAllDrives=True, supportsAllDrives=True,
-                                       fields="items(name,parents)").execute()
+                                       fields="files(id,name,parents)").execute()
         items = results.get('files', [])
 
         if not items:
@@ -47,9 +50,17 @@ class DriveHelper:
         else:
             print('Items:')
             for item in items:
+                # item = items[0]
                 print(item)
+                if modify:
+                    body = {
+                        "name": item["name"][8:]
+                    }
+                    updated_file = service.files().update(fileId=item["id"], supportsAllDrives=True,
+                                                          body=body).execute()
+                    print(f"Updated {updated_file.get('id')} to name {body['name']}")
 
 
 if __name__ == '__main__':
     h = DriveHelper()
-    h.run()
+    h.run(modify=True)
